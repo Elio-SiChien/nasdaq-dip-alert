@@ -19,6 +19,7 @@ concurrency:
 
 jobs:
   run:
+    if: ${{ !github.event.repository.is_template }}  # 模板本身不运行，复制出去的仓库才运行
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
