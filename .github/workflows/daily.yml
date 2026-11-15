@@ -1,0 +1,43 @@
+name: daily
+
+on:
+  schedule:
+    - cron: "17 1 * * 2-6"   # UTC 01:17 周二到周六 = 美股周一到周五收盘后（避开整点）
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "只发一封测试邮件（不改状态）"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: run
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+        run: python main.py ${{ inputs.test && '--test' || '' }}
+      - name: save state
+        if: always()
+        run: |
+          git config user.name "nasdaq-alert-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add state.json
+          git diff --cached --quiet || (git commit -m "state $(date -u +%F)" && git pull --rebase && git push)
